@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo da Cobrinha Mobile</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #fff;
+            background-color: #2c2c2c;
+        }
+        canvas {
+            border: 2px solid #fff;
+            background-color: #1a1a1a;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            max-width: 100%;
+            max-height: 50%;
+        }
+        .score {
+            font-size: 1.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            margin-top: 10px;
+        }
+        .controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: absolute;
+            bottom: 20px;
+        }
+        .dpad {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: 1fr 1fr 1fr;
+            gap: 10px;
+        }
+        .dpad button {
+            background-color: #fff;
+            border: none;
+            color: #000;
+            padding: 30px;
+            font-size: 1.8em;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+        }
+        .dpad .up { grid-column: 2 / 3; grid-row: 1 / 2; }
+        .dpad .down { grid-column: 2 / 3; grid-row: 3 / 4; }
+        .dpad .left { grid-column: 1 / 2; grid-row: 2 / 3; }
+        .dpad .right { grid-column: 3 / 4; grid-row: 2 / 3; }
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="score">Player Score: 0 | AI Score: 0</div>
+    <canvas id="gameCanvas" width="600" height="600"></canvas>
+    <div class="controls">
+        <div class="dpad">
+            <button class="up" onclick="changeDirection('UP')">⬆️</button>
+            <button class="left" onclick="changeDirection('LEFT')">⬅️</button>
+            <button class="right" onclick="changeDirection('RIGHT')">➡️</button>
+            <button class="down" onclick="changeDirection('DOWN')">⬇️</button>
+        </div>
+    </div>
+    <div class="game-over" id="gameOver">
+        <span id="gameOverMessage"></span>
+        <button onclick="restartGame()">Restart Game</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreDisplay = document.querySelector('.score');
+        const gameOverScreen = document.getElementById('gameOver');
+        const gameOverMessage = document.getElementById('gameOverMessage');
+
+        const box = 20;
+        let playerSnake = [{ x: 9 * box, y: 10 * box }];
+        let aiSnake = [{ x: 9 * box, y: 15 * box }];
+
+        let food = {
+            x: Math.floor(Math.random() * 29 + 1) * box,
+            y: Math.floor(Math.random() * 29 + 1) * box
+        };
+
+        let playerScore = 0;
+        let aiScore = 0;
+        let playerDirection = 'RIGHT';
+        let aiDirection = 'RIGHT';
+        let playerSpeed = 100; // Slower speed
+        let aiSpeed = 200; // Slower speed
+        let gameInterval;
+        let aiMoveCounter = 0;
+
+        document.addEventListener('keydown', direction);
+
+        function direction(event) {
+            switch (event.keyCode) {
+                case 37: changeDirection('LEFT'); break;
+                case 38: changeDirection('UP'); break;
+                case 39: changeDirection('RIGHT'); break;
+                case 40: changeDirection('DOWN'); break;
+            }
+        }
+
+        function changeDirection(dir) {
+            switch (dir) {
+                case 'LEFT': if (playerDirection !== 'RIGHT') playerDirection = 'LEFT'; break;
+                case 'UP': if (playerDirection !== 'DOWN') playerDirection = 'UP'; break;
+                case 'RIGHT': if (playerDirection !== 'LEFT') playerDirection = 'RIGHT'; break;
+                case 'DOWN': if (playerDirection !== 'UP') playerDirection = 'DOWN'; break;
+            }
+        }
+
+        function attack() {
+            let head = playerSnake[0];
+            for (let i = 0; i < aiSnake.length; i++) {
+                if (head.x === aiSnake[i].x && head.y === aiSnake[i].y) {
+                    aiSnake.splice(i, 1);
+                    break;
+                }
+            }
+        }
+
+        function aiMove() {
+            let head = aiSnake[0];
+            let distances = {
+                UP: Math.abs(head.x - food.x) + Math.abs(head.y - food.y - box),
+                DOWN: Math.abs(head.x - food.x) + Math.abs(head.y - food.y + box),
+                LEFT: Math.abs(head.x - food.x - box) + Math.abs(head.y - food.y),
+                RIGHT: Math.abs(head.x - food.x + box) + Math.abs(head.y - food.y)
+            };
+            let minDistance = Math.min(distances.UP, distances.DOWN, distances.LEFT, distances.RIGHT);
+
+            if (minDistance === distances.UP && aiDirection !== 'DOWN') aiDirection = 'UP';
+            else if (minDistance === distances.DOWN && aiDirection !== 'UP') aiDirection = 'DOWN';
+            else if (minDistance === distances.LEFT && aiDirection !== 'RIGHT') aiDirection = 'LEFT';
+            else if (minDistance === distances.RIGHT && aiDirection !== 'LEFT') aiDirection = 'RIGHT';
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#4CAF50';
+            ctx.fillRect(food.x, food.y, box, box);
+
+            playerSnake.forEach(segment => {
+                ctx.fillStyle = '#2196F3';
+                ctx.fillRect(segment.x, segment.y, box, box);
+                ctx.strokeStyle = '#004D40';
+                ctx.strokeRect(segment.x, segment.y, box, box);
+            });
+
+            aiSnake.forEach(segment => {
+                ctx.fillStyle = '#F44336';
+                ctx.fillRect(segment.x, segment.y, box, box);
+                ctx.strokeStyle = '#B71C1C';
+                ctx.strokeRect(segment.x, segment.y, box, box);
+            });
+
+            let playerHead = { x: playerSnake[0].x, y: playerSnake[0].y };
+            let aiHead = { x: aiSnake[0].x, y: aiSnake[0].y };
+
+            if (playerDirection === 'LEFT') playerHead.x -= box;
+            if (playerDirection === 'UP') playerHead.y -= box;
+            if (playerDirection === 'RIGHT') playerHead.x += box;
+            if (playerDirection === 'DOWN') playerHead.y += box;
+
+            // Move AI only every other frame
+            if (aiMoveCounter % 2 === 0) {
+                aiMove();
+                if (aiDirection === 'LEFT') aiHead.x -= box;
+                if (aiDirection === 'UP') aiHead.y -= box;
+                if (aiDirection === 'RIGHT') aiHead.x += box;
+                if (aiDirection === 'DOWN') aiHead.y += box;
+            }
+            aiMoveCounter++;
+
+            if (playerHead.x === food.x && playerHead.y === food.y) {
+                playerScore++;
+                scoreDisplay.textContent = `Player Score: ${playerScore} | AI Score: ${aiScore}`;
+                food = {
+                    x: Math.floor(Math.random() * 29 + 1) * box,
+                    y: Math.floor(Math.random() * 29 + 1) * box
+                };
+            } else {
+                playerSnake.pop();
+            }
+
+            if (aiHead.x === food.x && aiHead.y === food.y) {
+                aiScore++;
+                scoreDisplay.textContent = `Player Score: ${playerScore} | AI Score: ${aiScore}`;
+                food = {
+                    x: Math.floor(Math.random() * 29 + 1) * box,
+                    y: Math.floor(Math.random() * 29 + 1) * box
+                };
+            } else {
+                aiSnake.pop();
+            }
+
+            if (playerHead.x < 0) playerHead.x = canvas.width - box;
+            if (playerHead.x >= canvas.width) playerHead.x = 0;
+            if (playerHead.y < 0) playerHead.y = canvas.height - box;
+            if (playerHead.y >= canvas.height) playerHead.y = 0;
+
+            if (aiHead.x < 0) aiHead.x = canvas.width - box;
+            if (aiHead.x >= canvas.width) aiHead.x = 0;
+            if (aiHead.y < 0) aiHead.y = canvas.height - box;
+            if (aiHead.y >= canvas.height) aiHead.y = 0;
+
+            playerSnake.unshift(playerHead);
+            aiSnake.unshift(aiHead);
+
+            if (playerScore >= 10 || aiScore >= 10) {
+                clearInterval(gameInterval);
+                gameOverMessage.textContent = playerScore >= 10 ? 'Player wins!' : 'AI wins!';
+                gameOverScreen.style.display = 'flex';
+            }
+        }
+
+        function restartGame() {
+            playerSnake = [{ x: 9 * box, y: 10 * box }];
+            aiSnake = [{ x: 9 * box, y: 15 * box }];
+            playerScore = 0;
+            aiScore = 0;
+            playerDirection = 'RIGHT';
+            aiDirection = 'RIGHT';
+            playerSpeed = 100;
+            aiSpeed = 200;
+            aiMoveCounter = 0;
+            scoreDisplay.textContent = `Player Score: ${playerScore} | AI Score: ${aiScore}`;
+            food = {
+                x: Math.floor(Math.random() * 29 + 1) * box,
+                y: Math.floor(Math.random() * 29 + 1) * box
+            };
+            gameOverScreen.style.display = 'none';
+            clearInterval(gameInterval);
+            gameInterval = setInterval(draw, playerSpeed);
+        }
+
+        gameInterval = setInterval(draw, playerSpeed);
+    </script>
+</body>
+</html>
