@@ -120,10 +120,10 @@
 
         function changeDirection(dir) {
             switch (dir) {
-                case 'LEFT': if (playerDirection !== 'RIGHT') playerDirection = 'LEFT'; break;
-                case 'UP': if (playerDirection !== 'DOWN') playerDirection = 'UP'; break;
-                case 'RIGHT': if (playerDirection !== 'LEFT') playerDirection = 'RIGHT'; break;
-                case 'DOWN': if (playerDirection !== 'UP') playerDirection = 'DOWN'; break;
+                case 'LEFT': playerDirection = 'LEFT'; break;
+                case 'UP': playerDirection = 'UP'; break;
+                case 'RIGHT': playerDirection = 'RIGHT'; break;
+                case 'DOWN': playerDirection = 'DOWN'; break;
             }
         }
 
